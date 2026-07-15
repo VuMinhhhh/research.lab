@@ -1,0 +1,579 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Velo Wallet Prototype - Version 3</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --page-bg: #f2f4f7;
+      --hotspot-focus: rgba(20, 150, 136, 0.2);
+      --teal: #159b8f;
+      --off: #cfd8e4;
+      --viewport-height: 100vh;
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+      --stage-height: calc(var(--viewport-height) - var(--safe-top) - var(--safe-bottom));
+    }
+
+    @supports (height: 100svh) {
+      :root {
+        --viewport-height: 100svh;
+      }
+    }
+
+    @supports (height: 100dvh) {
+      :root {
+        --viewport-height: 100dvh;
+      }
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      min-height: var(--viewport-height);
+      height: var(--viewport-height);
+      margin: 0;
+      display: grid;
+      place-items: center;
+      background: var(--page-bg);
+      font-family: Arial, Helvetica, sans-serif;
+      overflow: hidden;
+      padding-top: var(--safe-top);
+      padding-bottom: var(--safe-bottom);
+    }
+
+    .prototype {
+      width: min(100vw, 460px);
+      height: var(--stage-height);
+      max-height: var(--stage-height);
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+      padding: 0;
+    }
+
+    .screen {
+      position: relative;
+      grid-area: 1 / 1;
+      width: fit-content;
+      max-width: 100vw;
+      max-height: var(--stage-height);
+      pointer-events: none;
+      transform: translate3d(0, 0, 0);
+      transition:
+        transform 200ms cubic-bezier(0.2, 0, 0, 1),
+        visibility 0s linear 200ms;
+      visibility: hidden;
+      will-change: transform;
+      overflow: visible;
+      overscroll-behavior: contain;
+      scrollbar-width: none;
+    }
+
+    .screen::-webkit-scrollbar {
+      display: none;
+    }
+
+    .screen.is-scrollable {
+      width: min(100vw, 460px);
+      height: var(--stage-height);
+      max-height: var(--stage-height);
+      overflow-x: hidden;
+      overflow-y: auto;
+    }
+
+    .screen-content {
+      position: relative;
+      width: fit-content;
+      max-width: 100vw;
+      max-height: var(--stage-height);
+    }
+
+    .screen.is-scrollable .screen-content {
+      width: 100%;
+      max-height: none;
+    }
+
+    .screen.is-active,
+    .screen.is-exiting {
+      transform: translate3d(0, 0, 0) scale(1);
+      visibility: visible;
+      transition:
+        transform 200ms cubic-bezier(0.2, 0, 0, 1),
+        visibility 0s;
+    }
+
+    .screen.is-active {
+      pointer-events: auto;
+      z-index: 2;
+    }
+
+    .screen.is-exiting {
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .screen.enter-from-right {
+      transform: translate3d(100%, 0, 0);
+    }
+
+    .screen.enter-from-left {
+      transform: translate3d(-100%, 0, 0);
+    }
+
+    .screen.exit-to-left {
+      transform: translate3d(0, 0, 0);
+    }
+
+    .screen.exit-to-right {
+      transform: translate3d(0, 0, 0);
+    }
+
+    .screen img {
+      display: block;
+      width: auto;
+      height: auto;
+      max-width: 100vw;
+      max-height: var(--stage-height);
+      user-select: none;
+      -webkit-user-drag: none;
+    }
+
+    .screen.is-scrollable img {
+      width: 100%;
+      height: auto;
+      max-width: 100%;
+      max-height: none;
+    }
+
+    .fixed-frame-scroll .frame-stage {
+      position: relative;
+      width: fit-content;
+      max-width: 100vw;
+      max-height: var(--stage-height);
+    }
+
+    .fixed-frame-scroll .frame-image {
+      width: auto;
+      height: auto;
+      max-width: 100vw;
+      max-height: var(--stage-height);
+      pointer-events: none;
+    }
+
+    .fixed-frame-scroll .scroll-window {
+      position: absolute;
+      left: 2.67%;
+      top: 1.23%;
+      width: 94.66%;
+      height: 97.54%;
+      overflow-x: hidden;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      scrollbar-width: none;
+      border-radius: 6%;
+    }
+
+    .fixed-frame-scroll .scroll-window::-webkit-scrollbar {
+      display: none;
+    }
+
+    .fixed-frame-scroll .scroll-content {
+      position: relative;
+      width: 100%;
+    }
+
+    .fixed-frame-scroll .scroll-content img {
+      width: 100%;
+      height: auto;
+      max-width: 100%;
+      max-height: none;
+    }
+
+    .hotspot {
+      position: absolute;
+      border: 0;
+      padding: 0;
+      background: transparent;
+      cursor: pointer;
+      border-radius: 12px;
+    }
+
+    .hotspot:focus-visible {
+      outline: 3px solid var(--hotspot-focus);
+      outline-offset: 2px;
+    }
+
+    .switch {
+      position: absolute;
+      border: 0;
+      padding: 0;
+      background: var(--off);
+      cursor: pointer;
+      border-radius: 999px;
+      box-shadow:
+        0 0 0 7px #fff,
+        inset 0 0 0 2px rgba(255, 255, 255, 0.2),
+        0 1px 4px rgba(15, 23, 42, 0.12);
+    }
+
+    .switch::after {
+      content: "";
+      position: absolute;
+      top: 6%;
+      left: 4%;
+      width: 42%;
+      height: 88%;
+      border-radius: 50%;
+      background: #fff;
+      box-shadow: 0 3px 8px rgba(15, 23, 42, 0.18);
+      transition: transform 160ms ease;
+    }
+
+    .switch.is-on {
+      background: var(--teal);
+    }
+
+    .switch.is-on::after {
+      transform: translateX(118%);
+    }
+
+    .switch:focus-visible {
+      outline: 3px solid var(--hotspot-focus);
+      outline-offset: 3px;
+    }
+
+    [data-screen="screen-2"] .balance {
+      left: 9%;
+      top: 30%;
+      width: 34%;
+      height: 13%;
+    }
+
+    [data-screen="screen-2"] .privacy {
+      left: 68.5%;
+      top: 41.2%;
+      width: 22.5%;
+      height: 10.8%;
+    }
+
+    [data-screen="screen-2"] .notifications {
+      left: 81.5%;
+      top: 6%;
+      width: 15%;
+      height: 7.7%;
+    }
+
+    [data-screen="screen-2"] .eye {
+      left: 80.5%;
+      top: 32.5%;
+      width: 9%;
+      height: 5%;
+    }
+
+    [data-screen="screen-2"] .send,
+    [data-screen="screen-2"] .receive,
+    [data-screen="screen-2"] .topup,
+    [data-screen="screen-2"] .bill,
+    [data-screen="screen-2"] .mobile,
+    [data-screen="screen-2"] .bus,
+    [data-screen="screen-2"] .flights,
+    [data-screen="screen-2"] .insurance,
+    [data-screen="screen-2"] .savings,
+    [data-screen="screen-2"] .cards,
+    [data-screen="screen-2"] .more,
+    [data-screen="screen-2"] .nav-home,
+    [data-screen="screen-2"] .nav-transactions,
+    [data-screen="screen-2"] .nav-offers,
+    [data-screen="screen-2"] .nav-profile {
+      height: 8.8%;
+    }
+
+    [data-screen="screen-2"] .send {
+      left: 13%;
+      top: 41.6%;
+      width: 15%;
+    }
+
+    [data-screen="screen-2"] .receive {
+      left: 32%;
+      top: 41.6%;
+      width: 15%;
+    }
+
+    [data-screen="screen-2"] .topup {
+      left: 52%;
+      top: 41.6%;
+      width: 15%;
+    }
+
+    [data-screen="screen-2"] .bill,
+    [data-screen="screen-2"] .insurance {
+      left: 8%;
+      width: 20%;
+    }
+
+    [data-screen="screen-2"] .mobile,
+    [data-screen="screen-2"] .savings {
+      left: 29%;
+      width: 20%;
+    }
+
+    [data-screen="screen-2"] .bus,
+    [data-screen="screen-2"] .cards {
+      left: 50%;
+      width: 20%;
+    }
+
+    [data-screen="screen-2"] .flights,
+    [data-screen="screen-2"] .more {
+      left: 71%;
+      width: 20%;
+    }
+
+    [data-screen="screen-2"] .bill,
+    [data-screen="screen-2"] .mobile,
+    [data-screen="screen-2"] .bus,
+    [data-screen="screen-2"] .flights {
+      top: 58%;
+    }
+
+    [data-screen="screen-2"] .insurance,
+    [data-screen="screen-2"] .savings,
+    [data-screen="screen-2"] .cards,
+    [data-screen="screen-2"] .more {
+      top: 67.5%;
+    }
+
+    [data-screen="screen-2"] .refer {
+      left: 8%;
+      top: 78.3%;
+      width: 84%;
+      height: 11.3%;
+    }
+
+    [data-screen="screen-2"] .nav-home,
+    [data-screen="screen-2"] .nav-transactions,
+    [data-screen="screen-2"] .nav-offers,
+    [data-screen="screen-2"] .nav-profile {
+      top: 92.7%;
+      width: 15%;
+      height: 6.8%;
+    }
+
+    [data-screen="screen-2"] .nav-home {
+      left: 6%;
+    }
+
+    [data-screen="screen-2"] .nav-transactions {
+      left: 24%;
+    }
+
+    [data-screen="screen-2"] .nav-scan {
+      left: 42%;
+      top: 91.2%;
+      width: 16%;
+      height: 8.5%;
+    }
+
+    [data-screen="screen-2"] .nav-offers {
+      left: 62%;
+    }
+
+    [data-screen="screen-2"] .nav-profile {
+      left: 79%;
+    }
+
+    [data-screen="screen-3b"] .continue {
+      left: 3.7%;
+      top: 88.85%;
+      width: 92.45%;
+      height: 7.6%;
+      border-radius: 28px;
+    }
+
+    [data-screen="screen-4b"] .support {
+      left: 14.4%;
+      top: 60.3%;
+      width: 71.2%;
+      height: 8.5%;
+      border-radius: 18px;
+    }
+
+    [data-screen="screen-5a"] .back {
+      left: 5.8%;
+      top: 6.2%;
+      width: 10%;
+      height: 5%;
+      border-radius: 50%;
+    }
+
+    [data-screen="screen-5a"] .archive {
+      left: 66%;
+      top: 6%;
+      width: 9%;
+      height: 5%;
+    }
+
+    [data-screen="screen-5a"] .delete {
+      left: 77%;
+      top: 6%;
+      width: 9%;
+      height: 5%;
+    }
+
+    [data-screen="screen-5a"] .reply {
+      left: 88%;
+      top: 6%;
+      width: 9%;
+      height: 5%;
+    }
+
+  </style>
+</head>
+<body>
+  <main class="prototype" aria-live="polite" aria-label="Velo Wallet Prototype Version 3">
+    <section class="screen is-active" data-screen="screen-1" aria-label="Opening screen">
+      <img src="Screen%201.png" alt="Velo Wallet opening screen">
+    </section>
+
+    <section class="screen" data-screen="screen-2" aria-label="Home screen">
+      <img src="Screen%202.jpg" alt="Velo Wallet home screen">
+      <button class="hotspot balance" type="button" aria-label="Open Velo Wallet Balance" data-target="screen-4b"></button>
+      <button class="hotspot privacy" type="button" aria-label="Open Privacy Manager" data-target="screen-3b"></button>
+      <button class="hotspot notifications" type="button" aria-label="Open notifications" data-target="screen-5a"></button>
+      <button class="hotspot noop eye" type="button" aria-label="Balance visibility"></button>
+      <button class="hotspot noop send" type="button" aria-label="Send"></button>
+      <button class="hotspot noop receive" type="button" aria-label="Receive"></button>
+      <button class="hotspot noop topup" type="button" aria-label="Top Up"></button>
+      <button class="hotspot noop bill" type="button" aria-label="Bill Pay"></button>
+      <button class="hotspot noop mobile" type="button" aria-label="Mobile Recharge"></button>
+      <button class="hotspot noop bus" type="button" aria-label="Bus Tickets"></button>
+      <button class="hotspot noop flights" type="button" aria-label="Flights"></button>
+      <button class="hotspot noop insurance" type="button" aria-label="Insurance"></button>
+      <button class="hotspot noop savings" type="button" aria-label="Savings"></button>
+      <button class="hotspot noop cards" type="button" aria-label="Cards"></button>
+      <button class="hotspot noop more" type="button" aria-label="More"></button>
+      <button class="hotspot noop refer" type="button" aria-label="Refer and Earn"></button>
+      <button class="hotspot noop nav-home" type="button" aria-label="Home tab"></button>
+      <button class="hotspot noop nav-transactions" type="button" aria-label="Transactions tab"></button>
+      <button class="hotspot noop nav-scan" type="button" aria-label="Scan tab"></button>
+      <button class="hotspot noop nav-offers" type="button" aria-label="Offers tab"></button>
+      <button class="hotspot noop nav-profile" type="button" aria-label="Profile tab"></button>
+    </section>
+
+    <section class="screen fixed-frame-scroll" data-screen="screen-3b" aria-label="Account setup screen">
+      <div class="frame-stage">
+        <img class="frame-image" src="Screen%203B.png" alt="">
+        <div class="scroll-window">
+          <div class="scroll-content">
+            <img src="assets/content-screen-3b.png" alt="Account setup">
+            <button class="hotspot continue" type="button" aria-label="Agree and continue to home" data-target="screen-2" data-direction="back"></button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="screen" data-screen="screen-4b" aria-label="System error screen">
+      <img src="Screen%204B.png" alt="System error">
+      <button class="hotspot support" type="button" aria-label="Support unavailable, return to home" data-target="screen-2" data-direction="back"></button>
+    </section>
+
+    <section class="screen" data-screen="screen-5a" aria-label="Security update notification">
+      <img src="Screen%205A.png" alt="June security update notification">
+      <button class="hotspot back" type="button" aria-label="Back to home" data-target="screen-2" data-direction="back"></button>
+      <button class="hotspot noop archive" type="button" aria-label="Archive"></button>
+      <button class="hotspot noop delete" type="button" aria-label="Delete"></button>
+      <button class="hotspot noop reply" type="button" aria-label="Reply"></button>
+    </section>
+  </main>
+
+  <script>
+    function syncViewportHeight() {
+      document.documentElement.style.setProperty("--viewport-height", `${window.innerHeight}px`);
+    }
+
+    syncViewportHeight();
+    window.addEventListener("resize", syncViewportHeight);
+    window.addEventListener("orientationchange", syncViewportHeight);
+    window.addEventListener("pageshow", syncViewportHeight);
+
+    document.querySelectorAll(".screen").forEach((screen) => {
+      const content = document.createElement("div");
+      content.className = "screen-content";
+      while (screen.firstChild) {
+        content.appendChild(screen.firstChild);
+      }
+      screen.appendChild(content);
+    });
+
+    const screens = [...document.querySelectorAll(".screen")];
+    let transitionTimer;
+
+    function showScreen(screenName, direction = "forward") {
+      const currentScreen = document.querySelector(".screen.is-active");
+      const nextScreen = screens.find((screen) => screen.dataset.screen === screenName);
+
+      if (!nextScreen || currentScreen === nextScreen) {
+        return;
+      }
+
+      window.clearTimeout(transitionTimer);
+      nextScreen.scrollTop = 0;
+      nextScreen.querySelector(".scroll-window")?.scrollTo(0, 0);
+
+      const enterClass = direction === "back" ? "enter-from-left" : "enter-from-right";
+      const exitClass = direction === "back" ? "exit-to-right" : "exit-to-left";
+
+      screens.forEach((screen) => {
+        screen.classList.remove(
+          "is-exiting",
+          "enter-from-right",
+          "enter-from-left",
+          "exit-to-left",
+          "exit-to-right"
+        );
+      });
+
+      if (currentScreen) {
+        currentScreen.classList.remove("is-active");
+        currentScreen.classList.add("is-exiting", exitClass);
+      }
+
+      nextScreen.classList.add("is-active", enterClass);
+      nextScreen.getBoundingClientRect();
+      window.requestAnimationFrame(() => {
+        nextScreen.classList.remove(enterClass);
+      });
+
+      transitionTimer = window.setTimeout(() => {
+        if (currentScreen) {
+          currentScreen.classList.remove("is-exiting", exitClass);
+        }
+      }, 200);
+    }
+
+    window.setTimeout(() => showScreen("screen-2", "forward"), 3000);
+
+    document.addEventListener("click", (event) => {
+      const targetButton = event.target.closest("[data-target]");
+      if (targetButton) {
+        const direction = targetButton.dataset.direction || "forward";
+        showScreen(targetButton.dataset.target, direction);
+        return;
+      }
+
+      const switchButton = event.target.closest(".switch");
+      if (switchButton) {
+        const nextState = !switchButton.classList.contains("is-on");
+        switchButton.classList.toggle("is-on", nextState);
+        switchButton.setAttribute("aria-pressed", String(nextState));
+      }
+    });
+  </script>
+</body>
+</html>
